@@ -267,8 +267,6 @@ void UDP::send_work()
 		}
 		buf.clear();
 	}
-
-	// ============ 主动断开（模仿 TCP FIN，尽力发送，不阻塞等待对端确认） ============
 	if (m_handshaked.load() && !m_need_reconnect.load()) {
 		m_hs_state = HS_SEND_FIN;
 		send_packet(static_cast<uint8_t>(disconnect), nullptr, 0, sendbuf);
@@ -359,7 +357,7 @@ void UDP::recv_work()
 			}
 			HandshakePayload hs{};
 			memcpy(&hs, payload, kHandshakePayloadSize);
-			// 确认号必须指向我方 ISN 的下一个序号，否则丢弃（TCP 语义）
+			// 确认号必须指向我方 ISN 的下一个序号，否则丢弃
 			if (hs.ack != m_client_isn + 1) {
 				break;
 			}
@@ -370,7 +368,7 @@ void UDP::recv_work()
 				send_packet(static_cast<uint8_t>(m_hand_response),
 					reinterpret_cast<const uint8_t*>(&ack), kHandshakePayloadSize, sendbuf);
 				m_handshaked.store(true); // ESTABLISHED
-				// 若对端重传 SYN+ACK，这里会重复回复 ACK（幂等，可容忍丢包）
+				// 若对端重传 SYN+ACK，这里会重复回复 ACK
 			}
 			else if (m_server_isn != 0) {
 				// 纯 ACK：对端确认了我们的 SYN+ACK（本端充当服务端时连接建立）
