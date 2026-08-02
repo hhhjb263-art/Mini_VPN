@@ -21,10 +21,28 @@
     <ClInclude Include="common\tun_macro.h">
       <Filter>源文件</Filter>
     </ClInclude>
-    <ClInclude Include="tun.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
     <ClInclude Include="wintun-0.14.1\wintun\include\wintun.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AdapterConfig.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="tun.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="route_manager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="packet_buffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="tunnel_protoco.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="UDP.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -35,5 +53,23 @@
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="AdapterConfig.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="route_manager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PacketQueue.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="packet_buffer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UDP.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TODAY.md" />
   </ItemGroup>
 </Project>

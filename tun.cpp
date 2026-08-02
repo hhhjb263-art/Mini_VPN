@@ -6,6 +6,9 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
 
 
 namespace {
@@ -30,7 +33,6 @@ namespace {
 		return true;
 	}
 
-	// 标准UTF8窄转宽，兼容中文
 	std::wstring StringToWString(const std::string& s)
 	{
 		if (s.empty()) return L"";
@@ -38,6 +40,20 @@ namespace {
 		std::wstring wBuf(wcharCount, 0);
 		MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, &wBuf[0], wcharCount);
 		return wBuf;
+	}
+	// 简单十六进制摘要（只打印前 N 字节）
+	std::string hex_summary(const uint8_t* data, size_t len, size_t max_print = 32)
+	{
+		if (data == nullptr || len == 0) return "<empty>";
+		std::ostringstream oss;
+		oss << std::hex << std::setfill('0');
+		size_t to = min(len, max_print);
+		for (size_t i = 0; i < to; ++i) {
+			oss << std::setw(2) << static_cast<int>(data[i]);
+			if (i + 1 != to) oss << ' ';
+		}
+		if (len > max_print) oss << " ...";
+		return oss.str();
 	}
 }
 
@@ -292,7 +308,6 @@ void WintunTun::release_read_packet(const uint8_t* pkt)
 	m_fnReleaseReceivePacket(m_hsession, reinterpret_cast<const BYTE*>(pkt));
 }
 
-// 修复逗号运算符bug，全部&&判断
 bool WintunTun::is_ready() const
 {
 	return m_bInited && m_hDll != nullptr && m_hAdapter != nullptr && m_hsession != nullptr;

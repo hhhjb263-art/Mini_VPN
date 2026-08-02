@@ -1,5 +1,6 @@
 #pragma once
 #include"itun_device.h"
+#include<atomic>
 #include"wintun-0.14.1/wintun/include/wintun.h"
 /*
 *	使用 wintun.h 官方声明的函数类型。
@@ -19,6 +20,7 @@ public:
 	bool write_packet(const uint8_t * RawIPdata , DWORD len) override;
 	NET_LUID get_interface_luid() const override;
 	bool is_ready() const override;
+	uint64_t receive_count() const;
 protected:
 	void cleanup_resource() override;
 private:
@@ -45,4 +47,5 @@ private:
 
 	WINTUN_ALLOCATE_SEND_PACKET_FUNC * m_fnAllocateSendPacket = nullptr;
 	WINTUN_SEND_PACKET_FUNC* m_fnSendPacket = nullptr;
+	mutable std::atomic<uint64_t> m_recv_count{ 0 };
 };

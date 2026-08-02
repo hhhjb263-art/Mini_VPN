@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -24,6 +24,7 @@
     <ProjectGuid>{e8b851c9-4d6f-4f26-81c4-49e29833c2d6}</ProjectGuid>
     <RootNamespace>VPN</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Client_VPN</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -123,14 +124,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AdapterConfig.h" />
     <ClInclude Include="common\tun_macro.h" />
     <ClInclude Include="itun_device.h" />
+    <ClInclude Include="PacketQueue.h" />
+    <ClInclude Include="packet_buffer.h" />
+    <ClInclude Include="route_manager.h" />
+    <ClInclude Include="reconnect_manager.h" />
     <ClInclude Include="tun.h" />
+    <ClInclude Include="tunnel_protoco.h" />
+    <ClInclude Include="UDP.h" />
     <ClInclude Include="wintun-0.14.1\wintun\include\wintun.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AdapterConfig.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PacketQueue.cpp" />
+    <ClCompile Include="packet_buffer.cpp" />
+    <ClCompile Include="route_manager.cpp" />
+    <ClCompile Include="reconnect_manager.cpp" />
     <ClCompile Include="tun.cpp" />
+    <ClCompile Include="UDP.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TODAY.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
