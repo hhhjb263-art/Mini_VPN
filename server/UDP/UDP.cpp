@@ -361,7 +361,8 @@ void UDP::send_work()
     packet_buffer buf;
 
     while(is_running()){
-        if(!is_handshaked()){
+        // data plane must be encrypted: wait for key exchange to finish
+        if(!is_handshaked() || !m_enc_ready.load()){
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         }
@@ -560,6 +561,18 @@ bool UDP::handle_handshake(const tunnel_header &hdr,size_t len,const uint8_t *pa
     if(syn.isn == 0){
         fprintf(stderr, "[UDP][HS] received SYN with isn==0\n");
         return false;
+    }
+
+    // Client reconnect / new session: reset crypto state from the previous session
+    // so the new KEY_EX derives fresh keys instead of reusing stale ones.
+    if(m_handshaked.load() || m_enc_ready.load()){
+        fprintf(stderr, "[UDP][HS] new session detected, resetting previous session keys\n");
+        m_handshaked.store(false);
+        m_enc_ready.store(false);
+        m_server_salt.clear();
+        secure_wipe(m_key_c2s);
+        secure_wipe(m_key_s2c);
+        m_last_heartbeat_ms.store(0);
     }
     
     // 收到对端 SYN：保存对端 ISN，回复 SYN+ACK {本机ISN, 对端ISN+1}
