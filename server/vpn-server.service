@@ -1,0 +1,21 @@
+[Unit]
+Description=VPN Server (TUN + UDP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 一键启动脚本：自动配置 IP 转发 / NAT / 防火墙，再启动 vpn_server
+ExecStart=/home/user/vscode/start.sh
+Restart=on-failure
+RestartSec=3
+# 需要网络管理能力（创建 TUN）
+AmbientCapabilities=CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+
+# 运行日志（journalctl -u vpn-server -f 查看）
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

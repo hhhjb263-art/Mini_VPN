@@ -1,0 +1,16 @@
+# 构建产物
+build/
+*.o
+*.a
+
+# 编译出的测试程序
+tun/test
+
+# 编辑器 / 系统
+.vscode/
+*.swp
+*~
+.DS_Store
+
+# 私钥（绝不提交）
+keys/
