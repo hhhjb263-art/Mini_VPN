@@ -1,10 +1,10 @@
 #pragma once
 #include"itun_device.h"
 #include<atomic>
-#include"wintun-0.14.1/wintun/include/wintun.h"
+#include "wintun.h"
 /*
 *	使用 wintun.h 官方声明的函数类型。
-	详见wintun-0.14.1/wintun/include/wintun.h源码
+	详见third_party/wintun-0.14.1/wintun/include/wintun.h源码
 */
 class WintunTun : public ITunDevice{
 public:

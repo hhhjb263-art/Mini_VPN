@@ -2,8 +2,10 @@
 
 #include "tunnel_protoco.h"
 #include "PacketQueue.h"
+#include "Crypt.h"
 
 #include <atomic>
+#include <memory>
 #include <thread>
 #include <vector>
 
@@ -32,6 +34,11 @@ public:
         const uint8_t* data,
         size_t len,
         std::vector<uint8_t>& sendbuf);
+
+    // 配置 X25519 密钥：客户端传 (私钥, 服务器公钥)，服务端角色传 (私钥, 客户端公钥)
+    void set_credentials(
+        std::shared_ptr<EVP_PKEY> priv_key,
+        std::shared_ptr<EVP_PKEY> peer_pub_key);
     uint32_t GenerateISN();
 public:
     void send_work();
@@ -51,7 +58,17 @@ private:
     HandshakeState m_hs_state = HS_IDLE;
     uint32_t m_client_isn = 0;    // 客户端随机初始序列号（模仿TCP ISN）
     uint32_t m_server_isn = 0;
+
+    // ============ 加密状态（X25519 + AES-256-GCM） ============
+    std::shared_ptr<EVP_PKEY> m_priv_key;       // 自己的 X25519 私钥
+    std::shared_ptr<EVP_PKEY> m_peer_pub_key;   // 对端 X25519 公钥
+    std::vector<std::uint8_t> m_key_c2s;        // 客户端→服务端 会话密钥
+    std::vector<std::uint8_t> m_key_s2c;        // 服务端→客户端 会话密钥
+    std::vector<std::uint8_t> m_client_salt;    // 客户端随机盐（收到 KEY_RESP 后派生用）
+    std::vector<std::uint8_t> m_server_salt;    // 服务端随机盐（服务端角色，KEY_EX 重传时复用）
+    std::atomic<bool> m_enc_ready{ false };     // 密钥交换完成标志
+    std::atomic<bool> m_is_client{ true };       // 本端是否发起方，决定加解密方向
 private:
     static constexpr size_t VPN_MTU = 1400;
-    static constexpr size_t KMax_packet_size = 1412;
+    static constexpr size_t KMax_packet_size = 1441;
 };

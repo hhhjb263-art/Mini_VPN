@@ -2,7 +2,7 @@
 #include<iphlpapi.h>
 #include<Windows.h>
 #include<string>
-#include"common/tun_macro.h"
+#include "tun_macro.h"
 
 
 // Wintun网卡IP/网络参数配置类，用来给虚拟网卡设置地址、MTU、DNS、跃点等

@@ -5,7 +5,7 @@
 #include <exception>
 #include <utility>
 
-#include "common/tun_macro.h"
+#include "tun_macro.h"
 
 namespace
 {
@@ -18,10 +18,14 @@ namespace
     constexpr auto kMonitorTick = std::chrono::milliseconds(50);
 }
 
-ReconnectManager::ReconnectManager(std::string remoteIp, uint16_t port, size_t queueMax)
+ReconnectManager::ReconnectManager(std::string remoteIp, uint16_t port, size_t queueMax,
+                                   std::shared_ptr<EVP_PKEY> priv_key,
+                                   std::shared_ptr<EVP_PKEY> peer_pub_key)
     : m_remote(std::move(remoteIp))
     , m_port(port)
     , m_queueMax(queueMax)
+    , m_priv_key(std::move(priv_key))
+    , m_peer_pub_key(std::move(peer_pub_key))
 {
 }
 
@@ -173,6 +177,7 @@ bool ReconnectManager::connect_once()
     try
     {
         u = std::make_shared<UDP>(m_remote.c_str(), m_port, false, m_queueMax);
+        u->set_credentials(m_priv_key, m_peer_pub_key);
     }
     catch (const std::exception& e)
     {

@@ -6,7 +6,7 @@
 #define _WINSOCKAPI_
 #include <winsock2.h>
 #include <ntddndis.h>
-#include"common/tun_macro.h"
+#include "tun_macro.h"
 #include <cstdint>
 #include <windows.h>
 #include <string>

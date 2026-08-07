@@ -26,7 +26,9 @@ enum type : uint8_t
     m_data = 2,
     m_heart = 3,
     m_heart_response = 4,
-    disconnect = 5
+    disconnect = 5,
+    m_key_exchange = 6,
+    m_key_response = 7
 };
 enum HandshakeState {
     HS_IDLE,
@@ -38,4 +40,4 @@ enum HandshakeState {
 constexpr uint32_t Kmagic = 0x4D56504E;
 constexpr uint8_t Kversion = v_udp;
 constexpr size_t Ktunnel_header = sizeof(tunnel_header);
-constexpr size_t Max_payload_len = 1400;
+constexpr size_t Max_payload_len = 1429;

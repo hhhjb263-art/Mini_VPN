@@ -1,5 +1,14 @@
 # VPN_
 
+## 目录结构
+
+- `src/`：项目源码（.cpp/.h）
+- `include/`：公共头文件
+- `third_party/`：第三方依赖（OpenSSL、Wintun）
+- `docs/`：项目文档与说明
+- `x64/`：Visual Studio 构建输出
+
+
 ## 项目要求与运行说明
 
 此项目依赖下列文件与环境，确保在构建与运行前满足：

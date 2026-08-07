@@ -8,6 +8,7 @@
 #include <thread>
 
 #include "UDP.h"
+#include "Crypt.h"
 
 // ===================== 连接状态机 =====================
 enum class ConnState
@@ -28,7 +29,9 @@ public:
     using StateCallback = std::function<void(ConnState)>;
     using ConnectedCallback = std::function<void()>;
 
-    ReconnectManager(std::string remoteIp, uint16_t port, size_t queueMax = 256);
+    ReconnectManager(std::string remoteIp, uint16_t port, size_t queueMax = 256,
+                     std::shared_ptr<EVP_PKEY> priv_key = nullptr,
+                     std::shared_ptr<EVP_PKEY> peer_pub_key = nullptr);
     ~ReconnectManager();
 
     ReconnectManager(const ReconnectManager&) = delete;
@@ -58,6 +61,9 @@ private:
     std::string m_remote;
     uint16_t m_port;
     size_t m_queueMax;
+
+    std::shared_ptr<EVP_PKEY> m_priv_key;     // 客户端 X25519 私钥
+    std::shared_ptr<EVP_PKEY> m_peer_pub_key; // 服务器 X25519 公钥
 
     std::atomic<bool> m_running{ false };
     std::atomic<ConnState> m_state{ ConnState::Stopped };

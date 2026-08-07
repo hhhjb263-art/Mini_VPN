@@ -3,10 +3,11 @@
 #include <chrono>
 #include <cstring>
 #include <random>
+#include "Crypt.h"
+#include <openssl/rand.h>
 
 namespace {
 
-// ===================== 握手负载（模仿 TCP 的 ISN/ACK 语义） =====================
 // 三次握手（客户端视角）：
 //   1) SYN     : type = m_hand_request , payload = { isn = 本端ISN,   ack = 0           }
 //   2) SYN+ACK : type = m_hand_response, payload = { isn = 对端ISN,   ack = 本端ISN + 1 }
@@ -15,6 +16,7 @@ namespace {
 //   - ack 是确认号，指向对方 ISN 的下一个序号（等价于 TCP 的 ACK Number）；
 //   - isn == 0 表示纯 ACK 包（不含 SYN 语义），用于区分 SYN+ACK 与 ACK；
 //   - 握手期间 header.sequence 仅作参考，以负载中的 isn/ack 为准。
+// 啊吧啊吧。。。
 #pragma pack(push, 1)
 struct HandshakePayload {
     uint32_t isn; // 本端初始序列号；0 = 纯 ACK
@@ -23,10 +25,64 @@ struct HandshakePayload {
 #pragma pack(pop)
 constexpr size_t kHandshakePayloadSize = sizeof(HandshakePayload);
 
-constexpr auto kHandshakeRetryInterval = std::chrono::milliseconds(500); // SYN 重传间隔（简化 RTO）
+constexpr auto kHandshakeRetryInterval = std::chrono::milliseconds(500); // SYN 重传间隔
 constexpr int kHandshakeMaxRetries = 10;                                 // 最大重传次数
 constexpr auto kHandshakeTimeout = std::chrono::seconds(5);              // 握手总超时
-	constexpr auto kHeartbeatTimeout = std::chrono::seconds(5);	// 心跳超时：超过该时长未收到对端任何报文即判定断线
+	constexpr auto kHeartbeatTimeout = std::chrono::seconds(5);
+// ===================== 密钥交换（X25519 + HKDF + AES-256-GCM） =====================
+constexpr size_t kKeyExchangePayloadSize = 64; // 32B 公钥 + 32B 随机盐
+constexpr auto kKeyExchangeRetryInterval = std::chrono::milliseconds(500);
+constexpr int kKeyExchangeMaxRetries = 10;
+constexpr auto kKeyExchangeTimeout = std::chrono::seconds(5);
+
+// 生成 32 字节随机盐
+bool random_bytes(std::vector<uint8_t>& out)
+{
+    return RAND_bytes(out.data(), static_cast<int>(out.size())) == 1;
+}
+
+// 从 X25519 EVP_PKEY 中取 32 字节原始公钥
+bool get_raw_pubkey(EVP_PKEY* pkey, std::vector<uint8_t>& out)
+{
+    if (pkey == nullptr)
+        return false;
+    size_t len = 0;
+    if (EVP_PKEY_get_raw_public_key(pkey, nullptr, &len) != 1)
+        return false;
+    out.resize(len);
+    return EVP_PKEY_get_raw_public_key(pkey, out.data(), &len) == 1;
+}
+
+// 从 32 字节原始公钥构造 EVP_PKEY
+EVP_PKEY* make_x25519_public_key(const uint8_t* raw, size_t len)
+{
+    return EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr, raw, len);
+}
+
+// 派生会话密钥：shared = ECDH；k_c2s/k_s2c = HKDF-SHA256(shared, salt=client_salt||server_salt)
+// 盐拼接顺序固定：客户端盐在前、服务端盐在后（服务端角色调用时传 peer_salt, my_salt）
+bool derive_session_keys(
+    EVP_PKEY* priv, EVP_PKEY* peer_pub,
+    const std::vector<uint8_t>& client_salt,
+    const std::vector<uint8_t>& server_salt,
+    std::vector<uint8_t>& k_c2s,
+    std::vector<uint8_t>& k_s2c)
+{
+    std::vector<uint8_t> shared;
+    try
+    {
+        shared = ecdh_derive_shared_secret(priv, peer_pub);
+        std::vector<uint8_t> salt = client_salt;
+        salt.insert(salt.end(), server_salt.begin(), server_salt.end());
+        k_c2s = hkdf_derive_key(shared, salt, "c2s", AES256_KEY_LEN);
+        k_s2c = hkdf_derive_key(shared, salt, "s2c", AES256_KEY_LEN);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}	// 心跳超时：超过该时长未收到对端任何报文即判定断线
 
 }
 
@@ -66,11 +122,21 @@ bool UDP::init()
 		WSACleanup();
 		return false;
 	}
-	// 握手准备：生成客户端 ISN（TCP 的初始序列号），在启动线程前设置，避免跨线程数据竞争
+
 	m_client_isn = GenerateISN();
 	m_server_isn = 0;
 	m_hs_state = HS_IDLE;
 	m_handshaked.store(false);
+	m_enc_ready.store(false);
+	m_is_client = true;
+	m_client_salt.resize(32);
+	m_server_salt.clear();
+	if (!random_bytes(m_client_salt)) {
+		closesocket(m_sock);
+		m_sock = INVALID_SOCKET;
+		WSACleanup();
+		return false;
+	}
 	m_need_reconnect.store(false);
 	m_seq.store(0, std::memory_order_relaxed);
 		m_last_rx_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
@@ -96,6 +162,12 @@ void UDP::stop()
 	if (recv_thread.joinable())
 		recv_thread.join();
 	m_handshaked.store(false);
+	m_enc_ready.store(false);
+	m_is_client = true;
+	secure_wipe(m_key_c2s);
+	secure_wipe(m_key_s2c);
+	secure_wipe(m_client_salt);
+	secure_wipe(m_server_salt);
 	m_need_reconnect.store(false);
 	m_hs_state = HS_IDLE;
 	m_client_isn = 0;
@@ -128,9 +200,16 @@ bool UDP::try_recv_ip_packet(packet_buffer& buf)
 	return m_recvqueue.try_pop(buf);
 }
 
+void UDP::set_credentials(
+	std::shared_ptr<EVP_PKEY> priv_key,
+	std::shared_ptr<EVP_PKEY> peer_pub_key)
+{
+	m_priv_key = std::move(priv_key);
+	m_peer_pub_key = std::move(peer_pub_key);
+}
 bool UDP::send_packet(uint8_t type, const uint8_t* data, size_t len, std::vector<uint8_t>& sendbuf)
 {
-	if (len > VPN_MTU)
+	if (len > Max_payload_len)
 		return false;
 	size_t total_len = Ktunnel_header + len;
 	sendbuf.resize(total_len);
@@ -144,6 +223,51 @@ bool UDP::send_packet(uint8_t type, const uint8_t* data, size_t len, std::vector
 	header.sequence = htonl(seq);
 
 	memcpy(sendbuf.data(), &header, Ktunnel_header);
+	// 数据面加密：m_data / m_heart / m_heart_response 在密钥就绪后以密文发送
+	if (m_enc_ready.load() && (type == static_cast<uint8_t>(m_data) ||
+		type == static_cast<uint8_t>(m_heart) ||
+		type == static_cast<uint8_t>(m_heart_response))) //握手 以明文发送 携带公钥
+	{
+		// enc_len = inner明文(1+len) + nonce12 + tag16
+		const size_t enc_len = len + 1 + AES_GCM_NONCE_LEN + AES_GCM_TAG_LEN;
+		if (enc_len > Max_payload_len)
+			return false;
+		header.payload_len = htons(static_cast<uint16_t>(enc_len));
+		memcpy(sendbuf.data(), &header, Ktunnel_header);
+		std::vector<uint8_t> inner;
+		inner.reserve(1 + len);
+		inner.push_back(type);
+		if (len)
+			inner.insert(inner.end(), data, data + len);
+		std::vector<uint8_t> enc;
+		try
+		{
+			enc = aes256_gcm_encrypt(
+				m_is_client ? m_key_c2s : m_key_s2c,
+				inner.data(), inner.size(),
+				sendbuf.data(), Ktunnel_header);
+		}
+		catch (const std::exception& e)
+		{
+			fprintf(stderr, "[UDP] 加密失败: %s\n", e.what());
+			return false;
+		}
+		if (enc.size() != enc_len)
+			return false;
+		sendbuf.resize(Ktunnel_header + enc.size());
+		memcpy(sendbuf.data() + Ktunnel_header, enc.data(), enc.size());
+		total_len = Ktunnel_header + enc.size();
+		int ret = sendto(m_sock, reinterpret_cast<const char*>(sendbuf.data()), static_cast<int>(total_len), 0,
+			reinterpret_cast<const sockaddr*>(&m_sockaddr), sizeof(m_sockaddr));
+		if (ret == SOCKET_ERROR)
+		{
+			int err = WSAGetLastError();
+			if (err == WSAECONNRESET)
+				m_need_reconnect.store(true);
+			return false;
+		}
+		return true;
+	}
 	if (len) {
 		memcpy(sendbuf.data() + Ktunnel_header, data, len);
 	}
@@ -174,7 +298,7 @@ void UDP::send_work()
 	auto last_heart = handshake_start;
 	int syn_retries = 0;
 
-	// ============ 三次握手（模仿 TCP）：SYN -> SYN+ACK -> ACK ============
+
 	// 客户端先发 SYN，携带本端 ISN
 	m_seq.store(m_client_isn, std::memory_order_relaxed);
 	{
@@ -197,7 +321,7 @@ void UDP::send_work()
 			break;
 		}
 
-		// SYN 超时重传（TCP 的 RTO 重传，这里简化为固定间隔）
+		// SYN 超时重传
 		if (now - last_syn >= kHandshakeRetryInterval) {
 			if (++syn_retries > kHandshakeMaxRetries) {
 				m_need_reconnect.store(true);
@@ -222,9 +346,60 @@ void UDP::send_work()
 
 	// 握手成功：进入 ESTABLISHED
 	m_hs_state = HS_SUCCESS;
+	// ============ 密钥交换：X25519 公钥 + 随机盐，之后数据面全部走 AES-256-GCM ============
+	if (!m_priv_key || !m_peer_pub_key)
+	{
+		fprintf(stderr, "[UDP] 未配置密钥，无法建立加密隧道,请自行申请X25519密钥,并保存至keys文件夹");
+
+		m_need_reconnect.store(true);
+		return;
+	}
+	{
+		std::vector<uint8_t> my_pub;
+		if (!get_raw_pubkey(m_priv_key.get(), my_pub))
+		{
+			fprintf(stderr, "[UDP] 密钥交换失败：无法取公钥\n");
+			m_need_reconnect.store(true);
+			return;
+		}
+		std::vector<uint8_t> key_ex_payload;
+		key_ex_payload.reserve(kKeyExchangePayloadSize);
+		key_ex_payload.insert(key_ex_payload.end(), my_pub.begin(), my_pub.end());
+		key_ex_payload.insert(key_ex_payload.end(), m_client_salt.begin(), m_client_salt.end());
+
+		auto key_start = clock_type::now();
+		auto last_key_retry = key_start;
+		int key_retries = 0;
+		while (m_running.load() && !m_enc_ready.load())
+		{
+			auto now = clock_type::now();
+			if (now - key_start > kKeyExchangeTimeout || m_need_reconnect.load())
+			{
+				fprintf(stderr, "[UDP] 密钥交换超时/对端不可达\n");
+				break;
+			}
+			if (now - last_key_retry >= kKeyExchangeRetryInterval)
+			{
+				if (++key_retries > kKeyExchangeMaxRetries)
+				{
+					fprintf(stderr, "[UDP] 密钥交换重试次数耗尽\n");
+					break;
+				}
+				send_packet(static_cast<uint8_t>(m_key_exchange),
+					key_ex_payload.data(), key_ex_payload.size(), sendbuf);
+				last_key_retry = now;
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+		}
+		if (!m_enc_ready.load())
+		{
+			m_need_reconnect.store(true);
+			return;
+		}
+		fprintf(stderr, "[UDP] 密钥交换完成，隧道已加密\n");
+	}
 	// 序号由 send_packet 的 fetch_add 原子递增（握手 ACK 已消耗 ISN+1，无需重置）
 
-	// ============ 已建立连接：心跳保活 + 数据转发 ============
 	while (m_running.load())
 	{
 		if (m_need_reconnect.load()) {
@@ -330,7 +505,59 @@ void UDP::recv_work()
 		m_last_rx_ms.store(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count());
 		const uint8_t* payload = recv_buf.data() + Ktunnel_header;
 
-		switch (header.type)
+		// 加密类型：密钥就绪后 data/heart/heart_response 均为密文，先解密再按内层类型分发
+	if (header.type == static_cast<uint8_t>(m_data) ||
+		header.type == static_cast<uint8_t>(m_heart) ||
+		header.type == static_cast<uint8_t>(m_heart_response))
+	{
+		if (!m_enc_ready.load())
+		{
+			continue; // 密钥未就绪前收到的数据/心跳一律丢弃
+		}
+		std::vector<uint8_t> enc(payload, payload + payload_len);
+		std::optional<std::vector<uint8_t>> plain;
+		try
+		{
+			plain = aes256_gcm_decrypt(
+				m_is_client ? m_key_s2c : m_key_c2s,
+				enc, recv_buf.data(), Ktunnel_header);
+		}
+		catch (const std::exception& e)
+		{
+			fprintf(stderr, "[UDP] 解密异常: %s\n", e.what());
+			continue;
+		}
+		if (!plain)
+		{
+			continue; // 认证失败，静默丢弃
+		}
+		uint8_t inner_type = 0;
+		std::vector<uint8_t> inner_payload;
+		if (!parse_inner_packet(*plain, inner_type, inner_payload))
+		{
+			continue;
+		}
+		switch (inner_type)
+		{
+		case m_data:
+			if (inner_payload.empty())
+				break;
+			{
+				packet_buffer pbuf(inner_payload.data(), inner_payload.size());
+				m_recvqueue.push(std::move(pbuf));
+			}
+			break;
+		case m_heart:
+			send_packet(static_cast<uint8_t>(m_heart_response), nullptr, 0, sendbuf);
+			break;
+		case m_heart_response:
+			break;
+		default:
+			break;
+		}
+		continue;
+	}
+	switch (header.type)
 		{
 		case m_hand_request:
 		{
@@ -373,6 +600,58 @@ void UDP::recv_work()
 			else if (m_server_isn != 0) {
 				// 纯 ACK：对端确认了我们的 SYN+ACK（本端充当服务端时连接建立）
 				m_handshaked.store(true);
+			}
+			break;
+		}
+		case m_key_exchange:
+		{
+			// 服务端角色：收到 KEY_EX，回复 KEY_RESP 并派生会话密钥
+			if (payload_len != kKeyExchangePayloadSize)
+				break;
+			// 首次收到才生成盐并派生；KEY_EX 重传时复用同一盐，避免两端密钥错位
+			if (m_server_salt.empty())
+			{
+				m_server_salt.resize(32);
+				if (!random_bytes(m_server_salt))
+					break;
+			}
+			std::vector<uint8_t> my_pub;
+			if (!get_raw_pubkey(m_priv_key.get(), my_pub))
+				break;
+			std::vector<uint8_t> resp;
+			resp.reserve(kKeyExchangePayloadSize);
+			resp.insert(resp.end(), my_pub.begin(), my_pub.end());
+			resp.insert(resp.end(), m_server_salt.begin(), m_server_salt.end());
+			send_packet(static_cast<uint8_t>(m_key_response), resp.data(), resp.size(), sendbuf);
+
+			if (!m_enc_ready.load())
+			{
+				std::vector<uint8_t> peer_pub(payload, payload + 32);
+				std::vector<uint8_t> peer_salt(payload + 32, payload + kKeyExchangePayloadSize);
+				EVP_PKEY* peer = make_x25519_public_key(peer_pub.data(), peer_pub.size());
+				if (peer != nullptr)
+				{
+					m_is_client = false;
+					if (derive_session_keys(m_priv_key.get(), peer, peer_salt, m_server_salt, m_key_c2s, m_key_s2c))
+						m_enc_ready.store(true);
+					EVP_PKEY_free(peer);
+				}
+			}
+			break;
+		}
+		case m_key_response:
+		{
+			// 客户端角色：收到 KEY_RESP，派生会话密钥
+			if (payload_len != kKeyExchangePayloadSize)
+				break;
+			std::vector<uint8_t> peer_pub(payload, payload + 32);
+			std::vector<uint8_t> peer_salt(payload + 32, payload + kKeyExchangePayloadSize);
+			EVP_PKEY* peer = make_x25519_public_key(peer_pub.data(), peer_pub.size());
+			if (peer != nullptr)
+			{
+				if (derive_session_keys(m_priv_key.get(), peer, m_client_salt, peer_salt, m_key_c2s, m_key_s2c))
+					m_enc_ready.store(true);
+				EVP_PKEY_free(peer);
 			}
 			break;
 		}

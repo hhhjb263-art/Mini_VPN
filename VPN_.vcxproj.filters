@@ -15,61 +15,75 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="itun_device.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
-    <ClInclude Include="common\tun_macro.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
-    <ClInclude Include="wintun-0.14.1\wintun\include\wintun.h">
+    <ClInclude Include="src\itun_device.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="AdapterConfig.h">
+    <ClInclude Include="include\tun_macro.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="tun.h">
+    <ClInclude Include="third_party\wintun-0.14.1\wintun\include\wintun.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="route_manager.h">
+    <ClInclude Include="src\AdapterConfig.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="PacketQueue.h">
+    <ClInclude Include="src\tun.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="packet_buffer.h">
+    <ClInclude Include="src\route_manager.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="tunnel_protoco.h">
+    <ClInclude Include="src\PacketQueue.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="UDP.h">
+    <ClInclude Include="src\packet_buffer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tunnel_protoco.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\UDP.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\reconnect_manager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Crypt.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="tun.cpp">
+    <ClCompile Include="src\tun.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
+    <ClCompile Include="src\main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="AdapterConfig.cpp">
+    <ClCompile Include="src\AdapterConfig.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="route_manager.cpp">
+    <ClCompile Include="src\route_manager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="PacketQueue.cpp">
+    <ClCompile Include="src\PacketQueue.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="packet_buffer.cpp">
+    <ClCompile Include="src\packet_buffer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="UDP.cpp">
+    <ClCompile Include="src\UDP.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="src\reconnect_manager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Crypt.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="TODAY.md" />
+    <None Include="docs\README.md" />
+    <None Include="docs\TODAY.md" />
+    <None Include="docs\LICENSE.txt" />
   </ItemGroup>
 </Project>

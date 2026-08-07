@@ -16,6 +16,8 @@
 #include "AdapterConfig.h"
 #include "route_manager.h"
 #include "reconnect_manager.h"
+#include "Crypt.h"
+#include <memory>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -123,6 +125,21 @@ int main(int argc, char** argv)
 
     std::cout << "VPN 客户端启动，目标服务器 " << remote << ":" << port << "\n";
 
+    // 加载 X25519 密钥：client.key（自己的私钥）+ server.pub（服务器公钥），放 exe 同目录
+    std::shared_ptr<EVP_PKEY> priv_key;
+    std::shared_ptr<EVP_PKEY> peer_pub;
+    try
+    {
+        priv_key.reset(load_x25519_private_key("client.key"), EVP_PKEY_free);
+        peer_pub.reset(load_x25519_public_key("server.pub"), EVP_PKEY_free);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "加载密钥失败: " << e.what() << "\n"
+                  << "请先生成密钥对：client.key（私钥）+ server.pub（服务器公钥）放到 exe 同目录\n";
+        return 1;
+    }
+
 
     ::SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
 
@@ -168,7 +185,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        ReconnectManager mgr(remote, port, 256);
+        ReconnectManager mgr(remote, port, 256, priv_key, peer_pub);
         g_mgr = &mgr;
         mgr.set_state_callback([](ConnState s)
             {

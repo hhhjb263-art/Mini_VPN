@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -15,13 +14,12 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{e8b851c9-4d6f-4f26-81c4-49e29833c2d6}</ProjectGuid>
-    <RootNamespace>VPN</RootNamespace>
+    <RootNamespace>VPN_</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Client_VPN</ProjectName>
+    <ProjectName>VPN_</ProjectName>
     <VcpkgEnabled>false</VcpkgEnabled>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -40,7 +38,6 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -48,14 +45,14 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)third_party\openssl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)include;$(ProjectDir)src;$(ProjectDir)third_party\wintun-0.14.1\wintun\include;$(ProjectDir)third_party\openssl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -73,9 +70,10 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)third_party\openssl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)include;$(ProjectDir)src;$(ProjectDir)third_party\wintun-0.14.1\wintun\include;$(ProjectDir)third_party\openssl\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -88,30 +86,34 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="AdapterConfig.h" />
-    <ClInclude Include="common\tun_macro.h" />
-    <ClInclude Include="itun_device.h" />
-    <ClInclude Include="PacketQueue.h" />
-    <ClInclude Include="packet_buffer.h" />
-    <ClInclude Include="route_manager.h" />
-    <ClInclude Include="reconnect_manager.h" />
-    <ClInclude Include="tun.h" />
-    <ClInclude Include="tunnel_protoco.h" />
-    <ClInclude Include="UDP.h" />
-    <ClInclude Include="wintun-0.14.1\wintun\include\wintun.h" />
+    <ClInclude Include="Crypt.h" />
+    <ClInclude Include="src\AdapterConfig.h" />
+    <ClInclude Include="include\tun_macro.h" />
+    <ClInclude Include="src\itun_device.h" />
+    <ClInclude Include="src\PacketQueue.h" />
+    <ClInclude Include="src\packet_buffer.h" />
+    <ClInclude Include="src\route_manager.h" />
+    <ClInclude Include="src\reconnect_manager.h" />
+    <ClInclude Include="src\tun.h" />
+    <ClInclude Include="src\tunnel_protoco.h" />
+    <ClInclude Include="src\UDP.h" />
+    <ClInclude Include="third_party\wintun-0.14.1\wintun\include\wintun.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="AdapterConfig.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="PacketQueue.cpp" />
-    <ClCompile Include="packet_buffer.cpp" />
-    <ClCompile Include="route_manager.cpp" />
-    <ClCompile Include="reconnect_manager.cpp" />
-    <ClCompile Include="tun.cpp" />
-    <ClCompile Include="UDP.cpp" />
+    <ClCompile Include="Crypt.cpp" />
+    <ClCompile Include="src\AdapterConfig.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\PacketQueue.cpp" />
+    <ClCompile Include="src\packet_buffer.cpp" />
+    <ClCompile Include="src\route_manager.cpp" />
+    <ClCompile Include="src\reconnect_manager.cpp" />
+    <ClCompile Include="src\tun.cpp" />
+    <ClCompile Include="src\UDP.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="TODAY.md" />
+    <None Include="docs\README.md" />
+    <None Include="docs\TODAY.md" />
+    <None Include="docs\LICENSE.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
