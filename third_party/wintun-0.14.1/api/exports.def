@@ -1,0 +1,16 @@
+LIBRARY wintun.dll
+EXPORTS
+	WintunAllocateSendPacket
+	WintunCreateAdapter
+	WintunEndSession
+	WintunOpenAdapter
+	WintunCloseAdapter
+	WintunGetAdapterLUID
+	WintunGetReadWaitEvent
+	WintunGetRunningDriverVersion
+	WintunReceivePacket
+	WintunReleaseReceivePacket
+	WintunSendPacket
+	WintunDeleteDriver
+	WintunSetLogger
+	WintunStartSession
