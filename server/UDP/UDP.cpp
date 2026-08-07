@@ -309,6 +309,9 @@ bool UDP::send_packet(uint8_t type, const uint8_t *data, size_t len, std::vector
         inner.push_back(type);
         if(len)
             inner.insert(inner.end(), data, data + len);
+        // AAD = the header actually sent: set payload_len to ciphertext length BEFORE encrypting
+        hdr.payload_len = htons(static_cast<uint16_t>(len + 1 + AES_GCM_NONCE_LEN + AES_GCM_TAG_LEN));
+        memcpy(tmp_buf.data(),&hdr,Ktunnel_header);
         std::vector<uint8_t> enc;
         try {
             enc = aes256_gcm_encrypt(m_key_s2c, inner.data(), inner.size(),
@@ -322,8 +325,7 @@ bool UDP::send_packet(uint8_t type, const uint8_t *data, size_t len, std::vector
             return false;
         }
         // 更新 payload_len 为密文长度
-        hdr.payload_len = htons(static_cast<uint16_t>(enc.size()));
-        memcpy(tmp_buf.data(),&hdr,Ktunnel_header);
+
         tmp_buf.resize(Ktunnel_header + enc.size());
         memcpy(tmp_buf.data() + Ktunnel_header, enc.data(), enc.size());
         total_len = Ktunnel_header + enc.size();
