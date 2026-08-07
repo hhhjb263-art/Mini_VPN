@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -61,7 +61,8 @@
       <AdditionalDependencies>libcrypto.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /D "$(ProjectDir)third_party\openssl\bin\libcrypto-3-x64.dll" "$(OutDir)"</Command>
+      <Command>xcopy /Y /D "$(ProjectDir)third_party\openssl\bin\libcrypto-3-x64.dll" "$(OutDir)"
+xcopy /Y /D "$(ProjectDir)third_party\wintun-0.14.1\wintun\bin\amd64\wintun.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -82,7 +83,8 @@
       <AdditionalDependencies>libcrypto.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /D "$(ProjectDir)third_party\openssl\bin\libcrypto-3-x64.dll" "$(OutDir)"</Command>
+      <Command>xcopy /Y /D "$(ProjectDir)third_party\openssl\bin\libcrypto-3-x64.dll" "$(OutDir)"
+xcopy /Y /D "$(ProjectDir)third_party\wintun-0.14.1\wintun\bin\amd64\wintun.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

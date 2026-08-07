@@ -365,3 +365,8 @@ FodyWeavers.xsd
 # 密钥文件不入库
 *.key
 *.pub
+
+# Runtime DLLs shipped with the repo (copied to OutDir by PostBuildEvent)
+!third_party/openssl/bin/
+!third_party/wintun-0.14.1/wintun/bin/
+!third_party/wintun-0.14.1/wintun/bin/amd64/
