@@ -12,5 +12,6 @@ tun/test
 *~
 .DS_Store
 
-# 私钥（绝不提交）
-keys/
+# 私钥（绝不提交）；只保留目录说明文件
+keys/*
+!keys/README.txt
