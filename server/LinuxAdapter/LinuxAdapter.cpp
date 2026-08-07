@@ -52,7 +52,10 @@ bool LinuxAdapter::fill_route(rtentry &rt, const std::string &dest, int prefix, 
     strncpy(rt.rt_dev,dev.c_str(),ALTIFNAMSIZ -1);
     rt.rt_dev[ALTIFNAMSIZ -1] = '\0';
 
-    rt.rt_flags = RTF_UP | RTF_HOST;
+    // plain network route: RTF_HOST only for /32 host routes
+    rt.rt_flags = RTF_UP;
+    if(prefix == 32)
+        rt.rt_flags |= RTF_HOST;
     return true;
 }
 LinuxAdapter::LinuxAdapter()
@@ -194,10 +197,7 @@ bool LinuxAdapter::route_add(const std::string &dest, int prefix, const std::str
         return false;
     }
     rtentry rt{};
-    int ifindex = get_ifindex(dev);
-    if(ifindex < 0)
-        return false;
-    if(!fill_route(rt,dest.c_str(),ifindex,dev)){
+    if(!fill_route(rt,dest,prefix,dev)){
         return false;
     }
     // add to route
