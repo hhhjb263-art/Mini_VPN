@@ -37,5 +37,4 @@ enum m_hand_request {
 constexpr uint32_t Kmagic = 0x4D56504E;
 constexpr uint8_t Kversion = v_udp;
 constexpr size_t Ktunnel_header = sizeof(tunnel_header);
-// Max TUN packet 1400 + inner type 1 + nonce 12 + tag 16 = 1429 (match client)
-constexpr size_t Max_payload_len = 1429;
+constexpr size_t Max_payload_len = 1400;

@@ -23,8 +23,7 @@ class UDP
 {
 private:
     static constexpr size_t VPN_MTU = 1400;
-    // 12 (header) + 1429 (max payload) = 1441, match client
-    static constexpr size_t KMax_packet_size = 1441;
+    static constexpr size_t KMax_packet_size = 1412;
 private:
     int m_sock = -1;
     sockaddr_in clt_addr{};
