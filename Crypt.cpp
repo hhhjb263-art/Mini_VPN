@@ -8,9 +8,12 @@
 #include <openssl/params.h>
 #include <openssl/pem.h>
 #include <openssl/rand.h>
+#include <openssl/bio.h>
 
 #include <climits>
 #include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -19,15 +22,7 @@
 
 namespace {
 
-    struct FileCloser {
-        void operator()(FILE* file) const noexcept
-        {
-            if (file != nullptr)
-                std::fclose(file);
-        }
-    };
-
-    using FilePtr = std::unique_ptr<FILE, FileCloser>;
+    using BioPtr = std::unique_ptr<BIO, decltype(&BIO_free)>;
     using PKeyPtr = std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>;
     using PKeyCtxPtr = std::unique_ptr<EVP_PKEY_CTX, decltype(&EVP_PKEY_CTX_free)>;
     using CipherCtxPtr =
@@ -101,15 +96,32 @@ void secure_wipe(std::vector<std::uint8_t>& buffer) noexcept
 
 EVP_PKEY* load_x25519_private_key(const std::string& pem_path)
 {
-    FILE* raw_file = std::fopen(pem_path.c_str(), "rb");
-    if (raw_file == nullptr) {
+    std::ifstream input(pem_path, std::ios::binary);
+    if (!input) {
         throw std::runtime_error(
             "Cannot open X25519 private-key file: " + pem_path);
     }
 
-    FilePtr file(raw_file);
+    std::vector<std::uint8_t> pem_data{
+        std::istreambuf_iterator<char>(input),
+        std::istreambuf_iterator<char>()};
+
+    if (pem_data.empty()) {
+        throw std::runtime_error(
+            "X25519 private-key file is empty: " + pem_path);
+    }
+
+    BioPtr bio(
+        BIO_new_mem_buf(
+            pem_data.data(),
+            checked_size_to_int(pem_data.size(), "pem_data")),
+        &BIO_free);
+
+    if (!bio)
+        throw_openssl_error("BIO_new_mem_buf failed");
+
     PKeyPtr key(
-        PEM_read_PrivateKey(file.get(), nullptr, nullptr, nullptr),
+        PEM_read_bio_PrivateKey(bio.get(), nullptr, nullptr, nullptr),
         &EVP_PKEY_free);
 
     if (!key)
@@ -125,15 +137,32 @@ EVP_PKEY* load_x25519_private_key(const std::string& pem_path)
 
 EVP_PKEY* load_x25519_public_key(const std::string& pem_path)
 {
-    FILE* raw_file = std::fopen(pem_path.c_str(), "rb");
-    if (raw_file == nullptr) {
+    std::ifstream input(pem_path, std::ios::binary);
+    if (!input) {
         throw std::runtime_error(
             "Cannot open X25519 public-key file: " + pem_path);
     }
 
-    FilePtr file(raw_file);
+    std::vector<std::uint8_t> pem_data{
+        std::istreambuf_iterator<char>(input),
+        std::istreambuf_iterator<char>()};
+
+    if (pem_data.empty()) {
+        throw std::runtime_error(
+            "X25519 public-key file is empty: " + pem_path);
+    }
+
+    BioPtr bio(
+        BIO_new_mem_buf(
+            pem_data.data(),
+            checked_size_to_int(pem_data.size(), "pem_data")),
+        &BIO_free);
+
+    if (!bio)
+        throw_openssl_error("BIO_new_mem_buf failed");
+
     PKeyPtr key(
-        PEM_read_PUBKEY(file.get(), nullptr, nullptr, nullptr),
+        PEM_read_bio_PUBKEY(bio.get(), nullptr, nullptr, nullptr),
         &EVP_PKEY_free);
 
     if (!key)

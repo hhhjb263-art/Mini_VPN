@@ -1,4 +1,4 @@
-﻿#include <iostream>
+#include <iostream>
 #include <string>
 #include <thread>
 #include <atomic>
@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdint>
 #include <exception>
+#include <fstream>
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -29,7 +30,7 @@ static std::wstring to_wstring(const std::string& str)
 
 namespace
 {
-    constexpr const char* kDefaultServer = "47.238.231.170";
+    constexpr const char* kDefaultServer = "38.76.211.127";
     constexpr uint16_t kDefaultPort = 51820;
 
     std::atomic<bool> g_running{ true };
@@ -37,12 +38,12 @@ namespace
     RouteManager* g_route = nullptr;
     ReconnectManager* g_mgr = nullptr;
 
-    // 唯一清理入口：正常退出、Ctrl+C、关闭窗口、异常捕获都走这里，只执行一次
+    // ??????:?????Ctrl+C??????????????,?????
     void request_shutdown()
     {
         std::call_once(g_shutdownFlag, []()
             {
-                std::cout << "\n正在退出，清理虚拟网卡路由...\n";
+                std::cout << "\n????,????????...\n";
                 g_running.store(false);
                 if (g_mgr)
                 {
@@ -55,7 +56,7 @@ namespace
             });
     }
 
-    // Ctrl+C / Ctrl+Break / 关闭窗口 / 关机：先清理再退出，避免路由残留
+    // Ctrl+C / Ctrl+Break / ???? / ??:??????,??????
     BOOL WINAPI console_ctrl_handler(DWORD ctrlType)
     {
         if (ctrlType == CTRL_C_EVENT || ctrlType == CTRL_BREAK_EVENT ||
@@ -94,11 +95,52 @@ namespace
 
     void print_usage(const char* exe)
     {
-        std::cerr << "用法: " << exe << " [服务器IP] [端口]\n"
-                  << "  默认: " << kDefaultServer << ":" << kDefaultPort << "\n"
-                  << "  示例: " << exe << " 47.238.231.170 51820\n"
-                  << "  运行后输入 r 回车可模拟断线测试重连，回车/关闭窗口退出\n";
+        std::cerr << "??: " << exe << " [???IP] [??]\n"
+                  << "  ??: " << kDefaultServer << ":" << kDefaultPort << "\n"
+                  << "  ??: " << exe << " 38.76.211.127 51820\n"
+                  << "  ????? r ???????????,??/??????\n";
     }
+}
+
+// Resolve key files relative to the exe directory (admin runs may change cwd).
+static std::string get_exe_dir()
+{
+    wchar_t buffer[MAX_PATH]{};
+    const DWORD n = ::GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+    if (n == 0 || n >= MAX_PATH)
+    {
+        return "";
+    }
+    const std::wstring path(buffer, n);
+    const std::size_t slash = path.find_last_of(L"\\/");
+    if (slash == std::wstring::npos)
+    {
+        return "";
+    }
+    std::string result;
+    result.reserve(slash + 1);
+    for (std::size_t i = 0; i <= slash; ++i)
+    {
+        result.push_back(static_cast<char>(path[i]));
+    }
+    return result;
+}
+
+// Look for the key file next to the exe, then in the keys\\ subfolder.
+static std::string find_key_file(const std::string& exe_dir, const std::string& filename)
+{
+    const std::string candidates[] = {
+        exe_dir + filename,
+        exe_dir + "keys\\" + filename
+    };
+    for (const auto& candidate : candidates)
+    {
+        if (std::ifstream probe{candidate, std::ios::binary})
+        {
+            return candidate;
+        }
+    }
+    return exe_dir + filename;
 }
 
 int main(int argc, char** argv)
@@ -111,32 +153,35 @@ int main(int argc, char** argv)
         remote = argv[1];
         if (!is_valid_ipv4(remote))
         {
-            std::cerr << "无效的服务器 IP: " << remote << "\n";
+            std::cerr << "?????? IP: " << remote << "\n";
             print_usage(argv[0]);
             return 1;
         }
     }
     if (argc > 2 && !parse_port(argv[2], port))
     {
-        std::cerr << "无效的端口: " << argv[2] << "（有效范围 1-65535）\n";
+        std::cerr << "?????: " << argv[2] << "(???? 1-65535)\n";
         print_usage(argv[0]);
         return 1;
     }
 
-    std::cout << "VPN 客户端启动，目标服务器 " << remote << ":" << port << "\n";
+    std::cout << "VPN ?????,????? " << remote << ":" << port << "\n";
 
-    // 加载 X25519 密钥：client.key（自己的私钥）+ server.pub（服务器公钥），放 exe 同目录
+    // ?? X25519 ??:client.key(?????)+ server.pub(?????),? exe ???
     std::shared_ptr<EVP_PKEY> priv_key;
     std::shared_ptr<EVP_PKEY> peer_pub;
     try
     {
-        priv_key.reset(load_x25519_private_key("client.key"), EVP_PKEY_free);
-        peer_pub.reset(load_x25519_public_key("server.pub"), EVP_PKEY_free);
+        const std::string exe_dir = get_exe_dir();
+        const std::string priv_path = find_key_file(exe_dir, "client.key");
+        priv_key.reset(load_x25519_private_key(priv_path), EVP_PKEY_free);
+        const std::string pub_path = find_key_file(exe_dir, "server.pub");
+        peer_pub.reset(load_x25519_public_key(pub_path), EVP_PKEY_free);
     }
     catch (const std::exception& e)
     {
-        std::cerr << "加载密钥失败: " << e.what() << "\n"
-                  << "请先生成密钥对：client.key（私钥）+ server.pub（服务器公钥）放到 exe 同目录\n";
+        std::cerr << "??????: " << e.what() << "\n"
+                  << "???????:client.key(??)+ server.pub(?????)?? exe ???\n";
         return 1;
     }
 
@@ -148,7 +193,7 @@ int main(int argc, char** argv)
         WintunTun tun;
         if (!tun.init_tun("MyTunAdapter", "MyTunnel"))
         {
-            std::cerr << "Wintun初始化失败（请以管理员身份运行，且 wintun.dll 位于 exe 同目录）\n";
+            std::cerr << "Wintun?????(?????????,? wintun.dll ?? exe ???)\n";
             return 1;
         }
 
@@ -156,32 +201,32 @@ int main(int argc, char** argv)
         AdapterConfig adapter(luid);
         if (!adapter.set_IPv4_address(L"10.8.0.2", 24))
         {
-            std::cerr << "设置TUN IP失败\n";
+            std::cerr << "??TUN IP??\n";
             return 1;
         }
         if (!adapter.set_MTU(1400))
         {
-            std::cerr << "[警告] 设置MTU失败\n";
+            std::cerr << "[??] ??MTU??\n";
         }
         if (!adapter.set_metric(5))
         {
-            std::cerr << "[警告] 设置接口跃点失败\n";
+            std::cerr << "[??] ????????\n";
         }
         if (!adapter.set_DNS_IPv4(L"8.8.8.8,1.1.1.1"))
         {
-            std::cerr << "[警告] 设置DNS失败，域名解析仍走本地DNS\n";
+            std::cerr << "[??] ??DNS??,????????DNS\n";
         }
 
         RouteManager route(luid);
         g_route = &route;
         if (!route.add_server_bypass_route(to_wstring(remote)))
         {
-            std::cerr << "添加服务器绕过路由失败\n";
+            std::cerr << "???????????\n";
             return 1;
         }
         if (!route.add_default_route(5))
         {
-            std::cerr << "添加默认路由失败\n";
+            std::cerr << "????????\n";
             return 1;
         }
 
@@ -189,22 +234,22 @@ int main(int argc, char** argv)
         g_mgr = &mgr;
         mgr.set_state_callback([](ConnState s)
             {
-                std::cout << "[Reconnect] 状态 -> " << ReconnectManager::state_name(s) << std::endl;
+                std::cout << "[Reconnect] ?? -> " << ReconnectManager::state_name(s) << std::endl;
             });
         mgr.set_connected_callback([&]()
             {
-                // 每次连接建立后，确认路由仍然生效
+                // ???????,????????
                 route.add_server_bypass_route(to_wstring(remote));
                 route.add_default_route(5);
-                std::cout << "[Reconnect] 连接建立，路由已确认\n";
+                std::cout << "[Reconnect] ????,?????\n";
             });
         if (!mgr.start())
         {
-            std::cerr << "重连状态机启动失败\n";
+            std::cerr << "?????????\n";
             return 1;
         }
 
-        /*  TUN <-> UDP 泵线程 */
+        /*  TUN <-> UDP ??? */
         std::thread tun_to_udp([&]()
             {
                 while (g_running.load())
@@ -254,11 +299,11 @@ int main(int argc, char** argv)
                 }
             });
 
-        std::cout << "VPN运行中\n"
-                  << "虚拟IP: 10.8.0.2\n"
-                  << "服务器: " << remote << ":" << port << "\n"
-                  << "输入 r 并回车：模拟断线测试重连\n"
-                  << "直接回车 / 关闭窗口 / Ctrl+C：退出\n";
+        std::cout << "VPN???\n"
+                  << "??IP: 10.8.0.2\n"
+                  << "???: " << remote << ":" << port << "\n"
+                  << "?? r ???:????????\n"
+                  << "???? / ???? / Ctrl+C:??\n";
 
 
         std::string line;
@@ -266,7 +311,7 @@ int main(int argc, char** argv)
         {
             if (line == "r" || line == "R")
             {
-                std::cout << "已模拟断线，观察重连日志...\n";
+                std::cout << "?????,??????...\n";
                 mgr.force_disconnect_for_test();
             }
             else
@@ -284,11 +329,11 @@ int main(int argc, char** argv)
         {
             udp_to_tun.join();
         }
-        std::cout << "VPN退出\n";
+        std::cout << "VPN??\n";
     }
     catch (const std::exception& e)
     {
-        std::cerr << "异常:" << e.what() << std::endl;
+        std::cerr << "??:" << e.what() << std::endl;
         request_shutdown();
         return 1;
     }
